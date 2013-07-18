@@ -323,7 +323,7 @@ module Build = struct
     append oc "%%s: _build/.stamp";
     append oc "\tocamlbuild -use-ocamlfind %s -tags \"syntax(camlp4o)\" -lflag -linkpkg main.%s"
       depends ext;
-    append oc "\tln -f mir-%s _build/main.%s" target ext;
+    append oc "\tln -f _build/main.%s mir-%s" ext target;
     newline oc;
     append oc "build: %s" target;
     append oc "\t@ :";
