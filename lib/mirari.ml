@@ -309,23 +309,21 @@ module Build = struct
     let ext = match mode with
       | `unix _ -> "native"
       | `xen    -> "native.o" in
-    let target = Printf.sprintf "%s.%s" t.name ext in
     let oc = open_out file in
     append oc "# %s" generated_by_mirari;
     newline oc;
-    append oc "PHONY: clean %s" target;
+    append oc "PHONY: clean main.native";
     newline oc;
     append oc "_build/.stamp:";
     append oc "\trm -rf _build";
     append oc "\tmkdir -p _build/lib";
     append oc "\t@touch $@";
     newline oc;
-    append oc "%%s: _build/.stamp";
+    append oc "main.native: _build/.stamp";
     append oc "\tocamlbuild -use-ocamlfind %s -tags \"syntax(camlp4o)\" -lflag -linkpkg main.%s"
       depends ext;
-    append oc "\tln -f _build/main.%s mir-%s" ext target;
     newline oc;
-    append oc "build: %s" target;
+    append oc "build: main.native";
     append oc "\t@ :";
     newline oc;
     append oc "clean:";
@@ -357,6 +355,7 @@ module Backend = struct
 
   let output ~mode dir =
     let file = Printf.sprintf "%s/backend.ml" dir in
+    info "+ creating %s" file;
     let oc = open_out file in
     match mode with
     |`unix _ ->
@@ -430,14 +429,13 @@ let call_crunch_scripts t =
   FS.call t.fs
 
 let call_xen_scripts t =
-  let obj = Printf.sprintf "%s/dist/build/mir-%s/mir-%s.native.o" t.dir t.name t.name in
-  let target = Printf.sprintf "%s/dist/build/mir-%s/mir-%s.xen" t.dir t.name t.name in
+  let obj = Printf.sprintf "%s/_build/main.native.o" t.dir in
+  let target = Printf.sprintf "%s/mir-%s.xen" t.dir t.name in
   if Sys.file_exists obj then begin
     let path = read_command "ocamlfind printconf path" in
     let lib = strip path ^ "/mirage-xen" in
     command "ld -d -nostdlib -m elf_x86_64 -T %s/mirage-x86_64.lds %s/x86_64.o %s %s/libocaml.a %s/libxen.a \
              %s/libxencaml.a %s/libdiet.a %s/libm.a %s/longjmp.o -o %s"  lib lib obj lib lib lib lib lib lib target;
-    command "ln -nfs %s/dist/build/mir-%s/mir-%s.xen mir-%s.xen" t.dir t.name t.name t.name;
     command "nm -n mir-%s.xen | grep -v '\\(compiled\\)\\|\\(\\.o$$\\)\\|\\( [aUw] \\)\\|\\(\\.\\.ng$$\\)\\|\\(LASH[RL]DI\\)' > mir-%s.map" t.name t.name
   end else
     error "xen object file %s not found, cannot continue" obj
